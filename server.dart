@@ -5,7 +5,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 
 Future main() async {
-  final file = File('total_table.xlsx'); // 엑셀 파일 경로
+  final file = File('apple.xlsx'); // 엑셀 파일 경로
 
   var server = await HttpServer.bind(
     InternetAddress.loopbackIPv4, // ip address
@@ -58,7 +58,7 @@ void printHttpRequestInfo(HttpRequest request) async {
 
 void readDB(var excel, var request) async {
   final uri = request.requestedUri;
-  final searchParam = uri.queryParameters['search'];
+  String searchParam = uri.queryParameters['search'];
   print(searchParam);
   //String key = request.uri.pathSegments.last;
   if (excel != null) {
@@ -77,7 +77,6 @@ void readDB(var excel, var request) async {
         };
 
         if(keyrow.containsKey(searchParam)) {
-          print('$searchParam: ${keyrow[searchParam]}');
           data[searchParam] = keyrow[searchParam];
         } else {
           print('$searchParam not found in the map');
