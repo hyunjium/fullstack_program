@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:excel/excel.dart';
+import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart';
 
 Future main() async {
   final file = File('total_table.xlsx'); // 엑셀 파일 경로
@@ -55,7 +57,10 @@ void printHttpRequestInfo(HttpRequest request) async {
 }
 
 void readDB(var excel, var request) async {
-  String key = request.uri.pathSegments.last;
+  final uri = request.requestedUri;
+  final searchParam = uri.queryParameters['search'];
+  print(searchParam);
+  //String key = request.uri.pathSegments.last;
   if (excel != null) {
     Map data = {};
     for (var table in excel.tables.keys) {
@@ -70,13 +75,12 @@ void readDB(var excel, var request) async {
         Map keyrow = {
           rowData.first.toString(): rowData.skip(1).join(', ')
         };
-        print(keyrow);
 
-        if(keyrow.containsKey(key)) {
-          print('$key: ${keyrow[key]}');
-          data[key] = keyrow[key];
+        if(keyrow.containsKey(searchParam)) {
+          print('$searchParam: ${keyrow[searchParam]}');
+          data[searchParam] = keyrow[searchParam];
         } else {
-          print('$key not found in the map');
+          print('$searchParam not found in the map');
         }
       }
     }

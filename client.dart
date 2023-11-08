@@ -12,9 +12,12 @@ Future main() async {
   HttpClientRequest httpRequest;
   HttpClientResponse httpResponse;
 
+  print("Enter a word to search on the server: ");
+  final wordToSearch = stdin.readLineSync();
+
 // Read : GET
   print("|-> Excel Read by GET");
-  serverPath = "/api/1";
+  serverPath = "/api/0001?search=$wordToSearch";
   httpRequest = await httpClient.get(serverIp, serverPort, serverPath);
   httpResponse = await httpRequest.close();
   httpResponseContent = await utf8.decoder.bind(httpResponse).join();
