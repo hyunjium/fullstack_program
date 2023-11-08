@@ -9,10 +9,17 @@ void main() async {
 
   for (var table in excel.tables.keys) {
     print(table); // 엑셀 시트 이름 출력
-    print(excel.tables[table]?.maxCols);
-    print(excel.tables[table]?.maxRows);
-    // for (var row in excel.tables[table]!) {
-    //   print('$row');
-    // }
+    var sheet = excel.tables[table]!;
+    print(sheet.maxCols);
+    print(sheet.maxRows);
+
+    for (var row in sheet.rows) {
+      var rowData = [];
+      var cell;
+      for (cell in row) {
+        rowData.add(cell.value);
+      }
+      print(rowData);
+    }
   }
 }
