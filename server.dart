@@ -5,6 +5,7 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 
 Future main() async {
+  var db = <dynamic, dynamic>{};
   final file = File('apple.xlsx'); // 엑셀 파일 경로
 
   var server = await HttpServer.bind(
@@ -21,9 +22,12 @@ Future main() async {
     if (request.uri.path.contains('/api/') == true) {
       printHttpRequestInfo(request);
       try {
-        switch (request.method) {
-          case 'GET': // Read
-            readDB(excel, request);
+        switch (request.uri.path) {
+          case '/api/0001': // Read
+            readMenuInfo(excel, request);
+            break;
+          case '/api/0002': // Create
+            createId(db, request);
             break;
           default:
             print("\$ Unsupported http method");
@@ -40,7 +44,7 @@ Future main() async {
 void printHttpServerActivated(HttpServer server) {
   var ip = server.address.address;
   var port = server.port;
-  print('\$ Server activated in ${ip}:${port}');
+  print('\$ Server activated in ${ip}:${port} \n');
 }
 
 void printHttpRequestInfo(HttpRequest request) async {
@@ -56,7 +60,15 @@ void printHttpRequestInfo(HttpRequest request) async {
   }
 }
 
-void readDB(var excel, var request) async {
+void printAndSendHttpResponse(var db, var request, var content) async {
+  request.response
+    ..headers.contentType = ContentType('text', 'plain', charset: "utf-8")
+    ..statusCode = HttpStatus.ok
+    ..write(content);
+  await request.response.close();
+}
+
+void readMenuInfo(var excel, var request) async {
   final uri = request.requestedUri;
   String searchParam = uri.queryParameters['search'];
   print("> Find the word $searchParam in it");
@@ -80,7 +92,7 @@ void readDB(var excel, var request) async {
       }
     print("> Found \n $data");
 
-    print("\$ Send to Client");
+    print("\$ Send to Client \n");
     request.response
       ..headers.contentType = ContentType('text', 'plain', charset: "utf-8")
       ..statusCode = HttpStatus.ok
@@ -94,4 +106,26 @@ void readDB(var excel, var request) async {
   }
 
   await request.response.close();
+}
+
+
+void createId(var db, var request) async {
+  var content = await utf8.decoder.bind(request).join();
+  var transaction = jsonDecode(content) as Map;
+  var key, value;
+
+  print("\> user_info \n $content \n");
+
+  transaction.forEach((k, v) {
+    key = k;
+    value = v;
+  });
+
+  if (db.containsKey(key) == false) {
+    db[key] = value;
+    content = "Success < $transaction created >";
+  } else {
+    content = "Fail < $key already exist >";
+  }
+  printAndSendHttpResponse(db, request, content);
 }
