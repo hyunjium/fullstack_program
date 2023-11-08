@@ -65,6 +65,16 @@ Future main() async {
   httpResponseContent = await utf8.decoder.bind(httpResponse).join();
   printHttpContentInfo(httpResponse, httpResponseContent);
 
+// // Read : GET user_info
+//   print("|-> User_info Read by GET");
+//   print("Enter a word to search on the server: ");
+//   final wordToSearch = stdin.readLineSync();
+//   serverPath = "/api/0001?search=$wordToSearch";
+//   httpRequest = await httpClient.get(serverIp, serverPort, serverPath);
+//   httpResponse = await httpRequest.close();
+//   httpResponseContent = await utf8.decoder.bind(httpResponse).join();
+//   printHttpContentInfo(httpResponse, httpResponseContent);
+
 }
 
 void printHttpContentInfo(var httpResponse, var httpResponseContent) {

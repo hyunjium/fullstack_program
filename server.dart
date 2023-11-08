@@ -118,7 +118,7 @@ void createId(var db, var request) async {
   var transaction = jsonDecode(content) as Map;
   var key, value;
 
-  print("\> user_info \n $content \n");
+  print("\> user_info \n $content");
 
   transaction.forEach((k, v) {
     key = k;
@@ -128,10 +128,10 @@ void createId(var db, var request) async {
   if (db.containsKey(key) == false) {
     db[key] = value;
     content = "Success < $transaction created >";
-    print("\$ Save user_info \n");
   } else {
     content = "Fail < $key already exist >";
   }
+  print("\$ Saved user_info $db \n");
   printAndSendHttpResponse(db, request, content);
 }
 
@@ -151,6 +151,8 @@ void login(var db, var login_info, var request) async {
   if (db.containsKey(key) == true){
     if(db[key][0] == value) {
       content = "Login Success! \n";
+      login_info.clear();
+      login_info[key] = db[key];
     }
     else{
       content = "Wrong PassWord! \n";
