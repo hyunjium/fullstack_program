@@ -3,8 +3,7 @@ import 'dart:convert';
 import 'package:excel/excel.dart';
 
 Future main() async {
-  //var db = <dynamic, dynamic>{};
-  final file = File('apple.xlsx'); // 엑셀 파일 경로
+  final file = File('total_table.xlsx'); // 엑셀 파일 경로
 
   var server = await HttpServer.bind(
     InternetAddress.loopbackIPv4, // ip address
@@ -56,25 +55,45 @@ void printHttpRequestInfo(HttpRequest request) async {
 }
 
 void readDB(var excel, var request) async {
-  List data = [];
-  for (var table in excel.tables.keys) {
-    var sheet = excel.tables[table]!;
+  String key = request.uri.pathSegments.last;
+  if (excel != null) {
+    Map data = {};
+    for (var table in excel.tables.keys) {
+      var sheet = excel.tables[table]!;
 
-    for (var row in sheet.rows) {
-      List rowData = [];
-      var cell;
-      for (cell in row) {
-        rowData.add(cell.value);
+      for (var row in sheet.rows) {
+        List rowData = [];
+        var cell;
+        for (cell in row) {
+          rowData.add(cell.value);
+        }
+        Map keyrow = {
+          rowData.first.toString(): rowData.skip(1).join(', ')
+        };
+        print(keyrow);
+
+        if(keyrow.containsKey(key)) {
+          print('$key: ${keyrow[key]}');
+          data[key] = keyrow[key];
+        } else {
+          print('$key not found in the map');
+        }
       }
-      data.add(rowData);
-      print(rowData);
     }
+    print(data);
+
+    print("\$ Send Excel");
+    request.response
+      ..headers.contentType = ContentType('text', 'plain', charset: "utf-8")
+      ..statusCode = HttpStatus.ok
+      ..write(data);
+  } else {
+    // Handle the case when 'excel' is null
+    print("\$ 'excel' object is null.");
+    request.response
+      ..statusCode = HttpStatus.internalServerError
+      ..write("Internal Server Error");
   }
 
-  print("\$ Send Excel");
-  request.response
-    ..headers.contentType = ContentType('text', 'plain', charset: "utf-8")
-    ..statusCode = HttpStatus.ok
-    ..write(data);
   await request.response.close();
 }
