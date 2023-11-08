@@ -59,7 +59,7 @@ void printHttpRequestInfo(HttpRequest request) async {
 void readDB(var excel, var request) async {
   final uri = request.requestedUri;
   String searchParam = uri.queryParameters['search'];
-  print(searchParam);
+  print("> Find the word $searchParam in it");
   //String key = request.uri.pathSegments.last;
   if (excel != null) {
     Map data = {};
@@ -72,20 +72,15 @@ void readDB(var excel, var request) async {
         for (cell in row) {
           rowData.add(cell.value);
         }
-        Map keyrow = {
-          rowData.first.toString(): rowData.skip(1).join(', ')
-        };
 
-        if(keyrow.containsKey(searchParam)) {
-          data[searchParam] = keyrow[searchParam];
-        } else {
-          print('$searchParam not found in the map');
+        if (rowData[0].toString().contains(searchParam)) {
+          data[rowData[0]] = [rowData[1],rowData[2]];
+          }
         }
       }
-    }
-    print(data);
+    print("> Found \n $data");
 
-    print("\$ Send Excel");
+    print("\$ Send to Client");
     request.response
       ..headers.contentType = ContentType('text', 'plain', charset: "utf-8")
       ..statusCode = HttpStatus.ok
