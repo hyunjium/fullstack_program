@@ -6,6 +6,7 @@ import 'package:shelf/shelf_io.dart';
 
 Future main() async {
   var db = <dynamic, dynamic>{};
+  var login_info = <dynamic, dynamic>{};
   final file = File('apple.xlsx'); // 엑셀 파일 경로
 
   var server = await HttpServer.bind(
@@ -28,6 +29,9 @@ Future main() async {
             break;
           case '/api/0002': // Create
             createId(db, request);
+            break;
+          case '/api/0003': // Read
+            login(db, login_info, request);
             break;
           default:
             print("\$ Unsupported http method");
@@ -124,8 +128,35 @@ void createId(var db, var request) async {
   if (db.containsKey(key) == false) {
     db[key] = value;
     content = "Success < $transaction created >";
+    print("\$ Save user_info \n");
   } else {
     content = "Fail < $key already exist >";
+  }
+  printAndSendHttpResponse(db, request, content);
+}
+
+
+void login(var db, var login_info, var request) async {
+  var content = await utf8.decoder.bind(request).join();
+  var transaction = jsonDecode(content) as Map;
+  var key, value;
+
+  print("\> login_info \n $content \n");
+
+  transaction.forEach((k, v) {
+    key = k;
+    value = v;
+  });
+
+  if (db.containsKey(key) == true){
+    if(db[key][0] == value) {
+      content = "Login Success! \n";
+    }
+    else{
+      content = "Wrong PassWord! \n";
+    }
+  } else {
+    content = "Please create account \n";
   }
   printAndSendHttpResponse(db, request, content);
 }
