@@ -62,11 +62,17 @@ Future main() async {
   userToken = int.parse(httpResponseContent[0]);
 
 // Read : GET menu info
+  List search = [userToken];
   print("|-> Menu info Read by GET");
   print("Enter a word to search on the server: ");
   final wordToSearch = stdin.readLineSync();
-  serverPath = "/api/0001?search=$wordToSearch";
-  httpRequest = await httpClient.get(serverIp, serverPort, serverPath);
+  search.add(wordToSearch);
+  var searchword = jsonEncode(search);
+  serverPath = "/api/0001";
+  httpRequest = await httpClient.get(serverIp, serverPort, serverPath)
+    ..headers.contentType = ContentType.json
+    ..headers.contentLength = searchword.length
+    ..write(searchword);
   httpResponse = await httpRequest.close();
   httpResponseContent = await utf8.decoder.bind(httpResponse).join();
   printHttpContentInfo(httpResponse, httpResponseContent);

@@ -8,6 +8,7 @@ Future main() async {
   int usernumber = 0;
   var db = {};
   var loginInfo = <dynamic, dynamic>{};
+  var searchword_db = {};
   final file = File('apple.xlsx'); // 엑셀 파일 경로
 
   var server = await HttpServer.bind(
@@ -26,13 +27,13 @@ Future main() async {
       try {
         switch (request.uri.path) {
           case '/api/0001': // Read
-            readMenuInfo(excel, request);
+            readMenuInfo(excel, request, searchword_db);
             break;
           case '/api/0002': // Create
-            createId(db, request, usernumber);
+            createId(db, request, usernumber, searchword_db);
             break;
           case '/api/0003': // Read
-            login(db, loginInfo, request);
+            login(db, loginInfo, request, searchword_db);
             break;
           default:
             print("\$ Unsupported http method");
@@ -73,11 +74,21 @@ void printAndSendHttpResponse(var db, var request, var content) async {
   await request.response.close();
 }
 
-void readMenuInfo(var excel, var request) async {
-  final uri = request.requestedUri;
-  String searchParam = uri.queryParameters['search'];
-  print("> Find the word '$searchParam' in it");
-  //String key = request.uri.pathSegments.last;
+void readMenuInfo(var excel, var request, var searchword_db) async {
+  var content = await utf8.decoder.bind(request).join();
+  var searchInfo = jsonDecode(content) as List;
+  List recentSearch = [];
+  if (searchword_db[searchInfo[0]] != null){
+    recentSearch.add(searchword_db[searchInfo[0]]);
+  }
+
+  print("> Find the word '${searchInfo[1]}' in it");
+  if (searchword_db[searchInfo[0]] == null){
+    searchword_db[searchInfo[0]] = searchInfo[1];
+  } else {
+    searchword_db[searchInfo[0]].add(searchInfo[1]);
+  }
+  
   if (excel != null) {
     Map data = {};
     for (var table in excel.tables.keys) {
@@ -90,18 +101,19 @@ void readMenuInfo(var excel, var request) async {
           rowData.add(cell.value);
         }
 
-        if (rowData[0].toString().contains(searchParam)) {
+        if (rowData[0].toString().contains(searchInfo[1])) {
           data[rowData[0]] = [rowData[1],rowData[2]];
           }
         }
       }
     print("> Found \n $data");
+    recentSearch.add(data);
 
     print("\$ Send to Client \n");
     request.response
       ..headers.contentType = ContentType('text', 'plain', charset: "utf-8")
       ..statusCode = HttpStatus.ok
-      ..write(data);
+      ..write(recentSearch);
   } else {
     // Handle the case when 'excel' is null
     print("\$ 'excel' object is null.");
@@ -114,7 +126,7 @@ void readMenuInfo(var excel, var request) async {
 }
 
 
-void createId(var db, var request, int usernumber) async {
+void createId(var db, var request, int usernumber, var searchword_db) async {
   var content = await utf8.decoder.bind(request).join();
   var transaction = jsonDecode(content) as List;
 
@@ -131,6 +143,7 @@ void createId(var db, var request, int usernumber) async {
       } else {
         usernumber++;
         db[usernumber] = transaction;
+        searchword_db[usernumber] = null;
         content = "Success < $transaction created >";
       }
     });
@@ -140,7 +153,7 @@ void createId(var db, var request, int usernumber) async {
 }
 
 
-void login(var db, var loginInfo, var request) async {
+void login(var db, var loginInfo, var request, var searchword_db) async {
   var content = await utf8.decoder.bind(request).join();
   var transaction = jsonDecode(content) as List;
 
@@ -152,7 +165,11 @@ void login(var db, var loginInfo, var request) async {
       db.forEach((key, value) {
         if (value.isNotEmpty && value[0] == transaction[0]) {
           if(value.isNotEmpty && value[1] == transaction[1]) {
-            content = "$key Login Success! \n";
+            if (searchword_db[key] == null){
+              content = "$key Login Success! \n";
+            }else {
+              content = "$key Login Success! \n ${searchword_db[key]}";
+            }
           }
           else {
             content = "Wrong PassWord! \n";
