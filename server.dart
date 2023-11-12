@@ -1,14 +1,12 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:excel/excel.dart';
-import 'package:shelf/shelf.dart';
-import 'package:shelf/shelf_io.dart';
 
 Future main() async {
   int usernumber = 0;
-  var db = {};
+  var userinfoDb = {};
   var loginInfo = <dynamic, dynamic>{};
-  var searchword_db = {};
+  var searchwordDb = {};
   final file = File('apple.xlsx'); // 엑셀 파일 경로
 
   var server = await HttpServer.bind(
@@ -27,13 +25,16 @@ Future main() async {
       try {
         switch (request.uri.path) {
           case '/api/0001': // Read
-            readMenuInfo(excel, request, searchword_db);
+            readMenuInfo(excel, request, searchwordDb);
             break;
           case '/api/0002': // Create
-            createId(db, request, usernumber, searchword_db);
+            createId(userinfoDb, request, usernumber, searchwordDb);
             break;
           case '/api/0003': // Read
-            login(db, loginInfo, request, searchword_db);
+            login(userinfoDb, loginInfo, request, searchwordDb);
+            break;
+          case '/api/0004': // Read
+            readUserInfo(userinfoDb, request);
             break;
           default:
             print("\$ Unsupported http method");
@@ -50,7 +51,7 @@ Future main() async {
 void printHttpServerActivated(HttpServer server) {
   var ip = server.address.address;
   var port = server.port;
-  print('\$ Server activated in ${ip}:${port} \n');
+  print('\$ Server activated in $ip:$port \n');
 }
 
 void printHttpRequestInfo(HttpRequest request) async {
@@ -66,7 +67,7 @@ void printHttpRequestInfo(HttpRequest request) async {
   }
 }
 
-void printAndSendHttpResponse(var db, var request, var content) async {
+void printAndSendHttpResponse(var request, var content) async {
   request.response
     ..headers.contentType = ContentType('text', 'plain', charset: "utf-8")
     ..statusCode = HttpStatus.ok
@@ -74,19 +75,19 @@ void printAndSendHttpResponse(var db, var request, var content) async {
   await request.response.close();
 }
 
-void readMenuInfo(var excel, var request, var searchword_db) async {
+void readMenuInfo(var excel, var request, var searchwordDb) async {
   var content = await utf8.decoder.bind(request).join();
   var searchInfo = jsonDecode(content) as List;
   List recentSearch = [];
-  if (searchword_db[searchInfo[0]] != null){
-    recentSearch.add(searchword_db[searchInfo[0]]);
+  if (searchwordDb[searchInfo[0]] != null){
+    recentSearch.add(searchwordDb[searchInfo[0]]);
   }
 
   print("> Find the word '${searchInfo[1]}' in it");
-  if (searchword_db[searchInfo[0]] == null){
-    searchword_db[searchInfo[0]] = searchInfo[1];
+  if (searchwordDb[searchInfo[0]] == null){
+    searchwordDb[searchInfo[0]] = searchInfo[1];
   } else {
-    searchword_db[searchInfo[0]].add(searchInfo[1]);
+    searchwordDb[searchInfo[0]].add(searchInfo[1]);
   }
   
   if (excel != null) {
@@ -107,13 +108,18 @@ void readMenuInfo(var excel, var request, var searchword_db) async {
         }
       }
     print("> Found \n $data");
-    recentSearch.add(data);
+    print("> Send to Client \n");
 
-    print("\$ Send to Client \n");
+    var sendtoClient;
+    if (recentSearch.isEmpty) {
+      sendtoClient = "$data";
+    } else {
+      sendtoClient = "$data \n $recentSearch";
+    }
     request.response
       ..headers.contentType = ContentType('text', 'plain', charset: "utf-8")
       ..statusCode = HttpStatus.ok
-      ..write(recentSearch);
+      ..write(sendtoClient);
   } else {
     // Handle the case when 'excel' is null
     print("\$ 'excel' object is null.");
@@ -126,58 +132,69 @@ void readMenuInfo(var excel, var request, var searchword_db) async {
 }
 
 
-void createId(var db, var request, int usernumber, var searchword_db) async {
+void createId(var userinfoDb, var request, int usernumber, var searchwordDb) async {
   var content = await utf8.decoder.bind(request).join();
   var transaction = jsonDecode(content) as List;
 
   print("> user_info \n $content");
 
-  if (db.isEmpty) {
+  if (userinfoDb.isEmpty) {
     usernumber++;
-    db[usernumber] = transaction;
+    userinfoDb[usernumber] = transaction;
     content = "Success < $transaction created >";
   } else {
-    db.forEach((key, value) {
+    userinfoDb.forEach((key, value) {
       if (value.isNotEmpty && value[0] == transaction[0]) {
         content = "Fail < ${transaction[0]} already exists >";
       } else {
         usernumber++;
-        db[usernumber] = transaction;
-        searchword_db[usernumber] = null;
+        userinfoDb[usernumber] = transaction;
+        searchwordDb[usernumber] = null;
         content = "Success < $transaction created >";
       }
     });
   }
-  print("\$ Saved user_info $db \n");
-  printAndSendHttpResponse(db, request, content);
+  print("> Saved user_info $userinfoDb \n");
+  printAndSendHttpResponse(request, content);
 }
 
 
-void login(var db, var loginInfo, var request, var searchword_db) async {
+void login(var userinfoDb, var loginInfo, var request, var searchwordDb) async {
   var content = await utf8.decoder.bind(request).join();
   var transaction = jsonDecode(content) as List;
 
   print("> login_info \n $content \n");
 
-    if (db.isEmpty) {
-      content = "Please create account \n";
+    if (userinfoDb.isEmpty) {
+      content = "Please create account";
     } else {
-      db.forEach((key, value) {
+      userinfoDb.forEach((key, value) {
         if (value.isNotEmpty && value[0] == transaction[0]) {
           if(value.isNotEmpty && value[1] == transaction[1]) {
-            if (searchword_db[key] == null){
-              content = "$key Login Success! \n";
+            if (searchwordDb[key] == null){
+              content = "$key Login Success!";
             }else {
-              content = "$key Login Success! \n ${searchword_db[key]}";
+              content = "$key Login Success! \n ${searchwordDb[key]}";
             }
           }
           else {
-            content = "Wrong PassWord! \n";
+            content = "Wrong PassWord!";
           }
         } else {
-          content = "Please create account \n";
+          content = "Please create account";
         }
       });
     }
-  printAndSendHttpResponse(db, request, content);
+  printAndSendHttpResponse(request, content);
+}
+
+
+void readUserInfo(var userinfoDb, var request) async {
+  var content = await utf8.decoder.bind(request).join();
+  var usertokenNum = jsonDecode(content) as int;
+
+  print("> user_info \n ${userinfoDb[usertokenNum]}");
+  var userInfo = userinfoDb[usertokenNum];
+  print("> Send to Client \n");
+  printAndSendHttpResponse(request, userInfo);
 }
