@@ -14,21 +14,22 @@ Future main() async {
 
   var content;
   List userinfo =[];
+  int userToken;
 
 // Create : POST id
   print("|-> Create ID by POST");
   print("Enter ID: ");
-  final user_id = stdin.readLineSync();
-  userinfo.add(user_id);
+  final userId = stdin.readLineSync();
+  userinfo.add(userId);
   print("Enter PassWord: ");
-  final user_pw = stdin.readLineSync();
-  userinfo.add(user_pw);
+  final userPw = stdin.readLineSync();
+  userinfo.add(userPw);
   print("Enter NickName: ");
-  final user_nn = stdin.readLineSync();
-  userinfo.add(user_nn);
+  final userNn = stdin.readLineSync();
+  userinfo.add(userNn);
   print("Enter PhoneNumber: ");
-  final user_pn = stdin.readLineSync();
-  userinfo.add(user_pn);
+  final userPn = stdin.readLineSync();
+  userinfo.add(userPn);
 
   content = jsonEncode(userinfo);
   serverPath = "/api/0002";
@@ -41,14 +42,15 @@ Future main() async {
   printHttpContentInfo(httpResponse, httpResponseContent);
 
 // Read : GET Login
-  var Login = {};
+  List login = [];
   print("|-> Login Read user_info by GET");
   print("Enter ID: ");
-  final ID = stdin.readLineSync();
+  final id = stdin.readLineSync();
+  login.add(id);
   print("Enter PassWord: ");
-  final PW = stdin.readLineSync();
-  Login[ID] = PW;
-  var content2 = jsonEncode(Login);
+  final pw = stdin.readLineSync();
+  login.add(pw);
+  var content2 = jsonEncode(login);
   serverPath = "/api/0003";
   httpRequest = await httpClient.get(serverIp, serverPort, serverPath)
     ..headers.contentType = ContentType.json
@@ -57,6 +59,7 @@ Future main() async {
   httpResponse = await httpRequest.close();
   httpResponseContent = await utf8.decoder.bind(httpResponse).join();
   printHttpContentInfo(httpResponse, httpResponseContent);
+  userToken = int.parse(httpResponseContent[0]);
 
 // Read : GET menu info
   print("|-> Menu info Read by GET");

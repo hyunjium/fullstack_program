@@ -7,7 +7,7 @@ import 'package:shelf/shelf_io.dart';
 Future main() async {
   int usernumber = 0;
   var db = {};
-  var login_info = <dynamic, dynamic>{};
+  var loginInfo = <dynamic, dynamic>{};
   final file = File('apple.xlsx'); // 엑셀 파일 경로
 
   var server = await HttpServer.bind(
@@ -32,7 +32,7 @@ Future main() async {
             createId(db, request, usernumber);
             break;
           case '/api/0003': // Read
-            login(db, login_info, request);
+            login(db, loginInfo, request);
             break;
           default:
             print("\$ Unsupported http method");
@@ -60,8 +60,8 @@ void printHttpRequestInfo(HttpRequest request) async {
   print("\$ $method $path from $ip:$port");
 
   if (request.headers.contentLength != -1) {
-    print("\> content-type   : ${request.headers.contentType}");
-    print("\> content-length : ${request.headers.contentLength}");
+    print("> content-type   : ${request.headers.contentType}");
+    print("> content-length : ${request.headers.contentLength}");
   }
 }
 
@@ -118,7 +118,7 @@ void createId(var db, var request, int usernumber) async {
   var content = await utf8.decoder.bind(request).join();
   var transaction = jsonDecode(content) as List;
 
-  print("\> user_info \n $content");
+  print("> user_info \n $content");
 
   if (db.isEmpty) {
     usernumber++;
@@ -140,29 +140,27 @@ void createId(var db, var request, int usernumber) async {
 }
 
 
-void login(var db, var login_info, var request) async {
+void login(var db, var loginInfo, var request) async {
   var content = await utf8.decoder.bind(request).join();
-  var transaction = jsonDecode(content) as Map;
-  var key, value;
+  var transaction = jsonDecode(content) as List;
 
-  print("\> login_info \n $content \n");
+  print("> login_info \n $content \n");
 
-  transaction.forEach((k, v) {
-    key = k;
-    value = v;
-  });
-
-  if (db.containsKey(key) == true){
-    if(db[key][0] == value) {
-      content = "Login Success! \n";
-      login_info.clear();
-      login_info[key] = db[key];
+    if (db.isEmpty) {
+      content = "Please create account \n";
+    } else {
+      db.forEach((key, value) {
+        if (value.isNotEmpty && value[0] == transaction[0]) {
+          if(value.isNotEmpty && value[1] == transaction[1]) {
+            content = "$key Login Success! \n";
+          }
+          else {
+            content = "Wrong PassWord! \n";
+          }
+        } else {
+          content = "Please create account \n";
+        }
+      });
     }
-    else{
-      content = "Wrong PassWord! \n";
-    }
-  } else {
-    content = "Please create account \n";
-  }
   printAndSendHttpResponse(db, request, content);
 }
