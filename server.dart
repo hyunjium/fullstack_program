@@ -5,7 +5,8 @@ import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 
 Future main() async {
-  var db = <dynamic, dynamic>{};
+  int usernumber = 0;
+  var db = {};
   var login_info = <dynamic, dynamic>{};
   final file = File('apple.xlsx'); // 엑셀 파일 경로
 
@@ -28,7 +29,7 @@ Future main() async {
             readMenuInfo(excel, request);
             break;
           case '/api/0002': // Create
-            createId(db, request);
+            createId(db, request, usernumber);
             break;
           case '/api/0003': // Read
             login(db, login_info, request);
@@ -75,7 +76,7 @@ void printAndSendHttpResponse(var db, var request, var content) async {
 void readMenuInfo(var excel, var request) async {
   final uri = request.requestedUri;
   String searchParam = uri.queryParameters['search'];
-  print("> Find the word $searchParam in it");
+  print("> Find the word '$searchParam' in it");
   //String key = request.uri.pathSegments.last;
   if (excel != null) {
     Map data = {};
@@ -113,23 +114,26 @@ void readMenuInfo(var excel, var request) async {
 }
 
 
-void createId(var db, var request) async {
+void createId(var db, var request, int usernumber) async {
   var content = await utf8.decoder.bind(request).join();
-  var transaction = jsonDecode(content) as Map;
-  var key, value;
+  var transaction = jsonDecode(content) as List;
 
   print("\> user_info \n $content");
 
-  transaction.forEach((k, v) {
-    key = k;
-    value = v;
-  });
-
-  if (db.containsKey(key) == false) {
-    db[key] = value;
+  if (db.isEmpty) {
+    usernumber++;
+    db[usernumber] = transaction;
     content = "Success < $transaction created >";
   } else {
-    content = "Fail < $key already exist >";
+    db.forEach((key, value) {
+      if (value.isNotEmpty && value[0] == transaction[0]) {
+        content = "Fail < ${transaction[0]} already exists >";
+      } else {
+        usernumber++;
+        db[usernumber] = transaction;
+        content = "Success < $transaction created >";
+      }
+    });
   }
   print("\$ Saved user_info $db \n");
   printAndSendHttpResponse(db, request, content);

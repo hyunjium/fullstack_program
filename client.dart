@@ -13,21 +13,24 @@ Future main() async {
   HttpClientResponse httpResponse;
 
   var content;
-  var jsonContent = {};
+  List userinfo =[];
 
 // Create : POST id
   print("|-> Create ID by POST");
   print("Enter ID: ");
   final user_id = stdin.readLineSync();
+  userinfo.add(user_id);
   print("Enter PassWord: ");
   final user_pw = stdin.readLineSync();
+  userinfo.add(user_pw);
   print("Enter NickName: ");
   final user_nn = stdin.readLineSync();
+  userinfo.add(user_nn);
   print("Enter PhoneNumber: ");
   final user_pn = stdin.readLineSync();
+  userinfo.add(user_pn);
 
-  jsonContent[user_id] = [user_pw,user_nn,user_pn];
-  content = jsonEncode(jsonContent);
+  content = jsonEncode(userinfo);
   serverPath = "/api/0002";
   httpRequest = await httpClient.post(serverIp, serverPort, serverPath)
     ..headers.contentType = ContentType.json
