@@ -2,20 +2,50 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:excel/excel.dart';
 
-Future main() async {
+Future<Map<int, List<dynamic>>> processExcelFile(String filePath) async {
+  try {
+    var file = File(filePath);
+    var bytes = await file.readAsBytes();
+    var excel = Excel.decodeBytes(bytes);
+
+    // Assume the first sheet is being processed
+    var sheet = excel.tables.keys.first;
+    var rows = excel.tables[sheet]!.rows;
+
+    // Convert rows to a Map
+    var result = <int, List<dynamic>>{};
+
+    for (var row in rows) {
+      var rowList = row.map((cell) => cell?.value).toList();
+      if (rowList.isNotEmpty) {
+        var key = int.tryParse(rowList[0]?.toString() ?? '');
+        var value = rowList.sublist(1);
+        if (key != null) {
+          result[key] = value;
+        }
+      }
+    }
+
+    return result;
+  } catch (e) {
+    print("Error processing Excel file: $e");
+    return {};
+  }
+}
+
+void main() async {
+  var excelFilePath = 'apple.xlsx';
+  var storeDb = await processExcelFile(excelFilePath);
+
   int usernumber = 0;
   var userinfoDb = {};
   var loginInfo = <dynamic, dynamic>{};
   var searchwordDb = {};
-  final file = File('apple.xlsx'); // 엑셀 파일 경로
 
   var server = await HttpServer.bind(
     InternetAddress.loopbackIPv4, // ip address
     4040, // port number
   );
-
-  var bytes = file.readAsBytesSync();
-  var excel = Excel.decodeBytes(bytes);
 
   printHttpServerActivated(server);
 
@@ -25,7 +55,7 @@ Future main() async {
       try {
         switch (request.uri.path) {
           case '/api/0001': // Read
-            readMenuInfo(excel, request, searchwordDb);
+            readMenuInfo(storeDb, request, searchwordDb);
             break;
           case '/api/0002': // Create
             createId(userinfoDb, request, usernumber, searchwordDb);
@@ -75,7 +105,7 @@ void printAndSendHttpResponse(var request, var content) async {
   await request.response.close();
 }
 
-void readMenuInfo(var excel, var request, var searchwordDb) async {
+void readMenuInfo(var storeDb, var request, var searchwordDb) async {
   var content = await utf8.decoder.bind(request).join();
   var searchInfo = jsonDecode(content) as List;
   List recentSearch = [];
@@ -89,47 +119,25 @@ void readMenuInfo(var excel, var request, var searchwordDb) async {
   } else {
     searchwordDb[searchInfo[0]].add(searchInfo[1]);
   }
+
+  Map<int, List<dynamic>> findMenu = {};
+  storeDb.forEach((key, value) {
+      if (value.isNotEmpty && value[0].toString().contains(searchInfo[1])) {
+        findMenu[key] = [value[0], value[1], double.parse(value[2].toStringAsFixed(1)), value[3], double.parse(value[5].toStringAsFixed(1))];
+      }});
   
-  if (excel != null) {
-    Map data = {};
-    for (var table in excel.tables.keys) {
-      var sheet = excel.tables[table]!;
-
-      for (var row in sheet.rows) {
-        List rowData = [];
-        var cell;
-        for (cell in row) {
-          rowData.add(cell.value);
-        }
-
-        if (rowData[0].toString().contains(searchInfo[1])) {
-          data[rowData[0]] = [rowData[1],rowData[2]];
-          }
-        }
-      }
-    print("> Found \n $data");
+    print("> Found \n $findMenu");
     print("> Send to Client \n");
 
     var sendtoClient;
     if (recentSearch.isEmpty) {
-      sendtoClient = "$data";
+      sendtoClient = "$findMenu";
     } else {
-      sendtoClient = "$data \n $recentSearch";
+      sendtoClient = "$findMenu \n $recentSearch";
     }
-    request.response
-      ..headers.contentType = ContentType('text', 'plain', charset: "utf-8")
-      ..statusCode = HttpStatus.ok
-      ..write(sendtoClient);
-  } else {
-    // Handle the case when 'excel' is null
-    print("\$ 'excel' object is null.");
-    request.response
-      ..statusCode = HttpStatus.internalServerError
-      ..write("Internal Server Error");
-  }
 
-  await request.response.close();
-}
+    printAndSendHttpResponse(request, sendtoClient);
+  }
 
 
 void createId(var userinfoDb, var request, int usernumber, var searchwordDb) async {
