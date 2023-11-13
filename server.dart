@@ -33,14 +33,19 @@ Future<Map<int, List<dynamic>>> processExcelFile(String filePath) async {
   }
 }
 
+class UserNumber {
+  var num;
+  UserNumber(this.num);
+}
+
 void main() async {
   var excelFilePath = 'apple.xlsx';
   var storeDb = await processExcelFile(excelFilePath);
 
-  int usernumber = 0;
+  var usernumber = UserNumber(0);
   var userinfoDb = {};
   var loginInfo = <dynamic, dynamic>{};
-  var searchwordDb = {};
+  var recentsearchDb = {};
 
   var server = await HttpServer.bind(
     InternetAddress.loopbackIPv4, // ip address
@@ -55,13 +60,13 @@ void main() async {
       try {
         switch (request.uri.path) {
           case '/api/0001': // Read
-            readMenuInfo(storeDb, request, searchwordDb);
+            readMenuInfo(storeDb, request, recentsearchDb);
             break;
           case '/api/0002': // Create
-            createId(userinfoDb, request, usernumber, searchwordDb);
+            createId(userinfoDb, request, usernumber, recentsearchDb);
             break;
           case '/api/0003': // Read
-            login(userinfoDb, loginInfo, request, searchwordDb);
+            login(userinfoDb, loginInfo, request, recentsearchDb);
             break;
           case '/api/0004': // Read
             readUserInfo(userinfoDb, request);
@@ -105,24 +110,16 @@ void printAndSendHttpResponse(var request, var content) async {
   await request.response.close();
 }
 
-void readMenuInfo(var storeDb, var request, var searchwordDb) async {
+void readMenuInfo(var storeDb, var request, var recentsearchDb) async {
+  var token = request.headers['authorization']![0];
   var content = await utf8.decoder.bind(request).join();
-  var searchInfo = jsonDecode(content) as List;
-  List recentSearch = [];
-  if (searchwordDb[searchInfo[0]] != null){
-    recentSearch.add(searchwordDb[searchInfo[0]]);
-  }
+  var searchWord = jsonDecode(content);
 
-  print("> Find the word '${searchInfo[1]}' in it");
-  if (searchwordDb[searchInfo[0]] == null){
-    searchwordDb[searchInfo[0]] = searchInfo[1];
-  } else {
-    searchwordDb[searchInfo[0]].add(searchInfo[1]);
-  }
+  print("> Find the word '$searchWord' in it");
 
   Map<int, List<dynamic>> findMenu = {};
   storeDb.forEach((key, value) {
-      if (value.isNotEmpty && value[0].toString().contains(searchInfo[1])) {
+      if (value.isNotEmpty && value[0].toString().contains(searchWord)) {
         findMenu[key] = [value[0], value[1], double.parse(value[2].toStringAsFixed(1)), value[3], double.parse(value[5].toStringAsFixed(1))];
       }});
   
@@ -130,70 +127,100 @@ void readMenuInfo(var storeDb, var request, var searchwordDb) async {
     print("> Send to Client \n");
 
     var sendtoClient;
-    if (recentSearch.isEmpty) {
+    if (recentsearchDb[token] == null) {
       sendtoClient = "$findMenu";
+      recentsearchDb[token] = searchWord;
     } else {
-      sendtoClient = "$findMenu \n $recentSearch";
+      sendtoClient = "$findMenu \n ${recentsearchDb[token]}";
+      recentsearchDb[token].add(searchWord);
     }
-
+    
     printAndSendHttpResponse(request, sendtoClient);
   }
 
 
-void createId(var userinfoDb, var request, int usernumber, var searchwordDb) async {
+void createId(var userinfoDb, var request, UserNumber usernumber, var recentsearchDb) async {
   var content = await utf8.decoder.bind(request).join();
   var transaction = jsonDecode(content) as List;
 
   print("> user_info \n $content");
+  bool make = true;
 
   if (userinfoDb.isEmpty) {
-    usernumber++;
-    userinfoDb[usernumber] = transaction;
+    usernumber.num++;
+    int nownum = usernumber.num;
+    userinfoDb[nownum] = transaction;
     content = "Success < $transaction created >";
   } else {
-    userinfoDb.forEach((key, value) {
+    var keys = List.from(userinfoDb.keys);
+    for (var key in keys) {
+      var value = userinfoDb[key];
       if (value.isNotEmpty && value[0] == transaction[0]) {
         content = "Fail < ${transaction[0]} already exists >";
+        make = false;
+        break;
       } else {
-        usernumber++;
-        userinfoDb[usernumber] = transaction;
-        searchwordDb[usernumber] = null;
-        content = "Success < $transaction created >";
-      }
-    });
+        continue;
+      }}
+    if (make == true) {
+      usernumber.num++;
+      int nownum = usernumber.num;
+      userinfoDb[nownum] = transaction;
+      recentsearchDb[nownum] = null;
+      content = "Success < $transaction created >";
+    }
   }
   print("> Saved user_info $userinfoDb \n");
   printAndSendHttpResponse(request, content);
 }
 
 
-void login(var userinfoDb, var loginInfo, var request, var searchwordDb) async {
+void login(var userinfoDb, var loginInfo, var request, var recentsearchDb) async {
   var content = await utf8.decoder.bind(request).join();
   var transaction = jsonDecode(content) as List;
 
   print("> login_info \n $content \n");
+  var token;
+  bool match = false;
 
     if (userinfoDb.isEmpty) {
       content = "Please create account";
     } else {
-      userinfoDb.forEach((key, value) {
-        if (value.isNotEmpty && value[0] == transaction[0]) {
+      var keys = List.from(userinfoDb.keys);
+      for (var key in keys) {
+      var value = userinfoDb[key];
+      if (value.isNotEmpty && value[0] != transaction[0]) {
+        continue;
+        } else {
+          match = true;
+          token = key;
           if(value.isNotEmpty && value[1] == transaction[1]) {
-            if (searchwordDb[key] == null){
-              content = "$key Login Success!";
-            }else {
-              content = "$key Login Success! \n ${searchwordDb[key]}";
+            if (recentsearchDb[key] == null){
+            content = "Login Success!";
+            break;
+            } else {
+            content = "Login Success! \n ${recentsearchDb[key]}";
+            break;
             }
           }
           else {
             content = "Wrong PassWord!";
+            break;
           }
-        } else {
-          content = "Please create account";
         }
-      });
+        }
     }
-  printAndSendHttpResponse(request, content);
+      if (match == false) {
+        token = 0;
+        content = "Please create account";
+      }
+
+  request.response
+    ..headers.contentType = ContentType('text', 'plain', charset: "utf-8")
+    ..headers.set('Authorization', token)
+    ..statusCode = HttpStatus.ok
+    ..write(content);
+  await request.response.close();
 }
 
 
