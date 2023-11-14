@@ -45,7 +45,8 @@ void main() async {
   var usernumber = UserNumber(0);
   var userinfoDb = {};
   var loginInfo = <dynamic, dynamic>{};
-  var recentsearchDb = {};
+  var recentsearchDb = <dynamic,List<dynamic>>{};
+  var starDb = <dynamic,List<dynamic>>{};
 
   var server = await HttpServer.bind(
     InternetAddress.loopbackIPv4, // ip address
@@ -70,6 +71,21 @@ void main() async {
             break;
           case '/api/0004': // Read
             readUserInfo(userinfoDb, request);
+            break;
+          case '/api/0005': // Read
+            readStoreInfo(storeDb, request, recentsearchDb);
+            break;
+          case '/api/0006': // Read
+            recentWord(storeDb, request, recentsearchDb);
+            break;
+          case '/api/0007': // Read
+            getUrl(storeDb, request, recentsearchDb);
+            break;
+          case '/api/0008': // Read
+            clickStar(starDb, request, storeDb);
+            break;
+          case '/api/0009': // Read
+            getStar(starDb, request, storeDb);
             break;
           default:
             print("\$ Unsupported http method");
@@ -98,7 +114,7 @@ void printHttpRequestInfo(HttpRequest request) async {
 
   if (request.headers.contentLength != -1) {
     print("> content-type   : ${request.headers.contentType}");
-    print("> content-length : ${request.headers.contentLength}");
+    //print("> content-length : ${request.headers.contentLength}");
   }
 }
 
@@ -115,7 +131,7 @@ void readMenuInfo(var storeDb, var request, var recentsearchDb) async {
   var content = await utf8.decoder.bind(request).join();
   var searchWord = jsonDecode(content);
 
-  print("> Find the word '$searchWord' in it");
+  print("> Find the word '$searchWord' in menu");
 
   Map<int, List<dynamic>> findMenu = {};
   storeDb.forEach((key, value) {
@@ -126,15 +142,39 @@ void readMenuInfo(var storeDb, var request, var recentsearchDb) async {
     print("> Found \n $findMenu");
     print("> Send to Client \n");
 
-    var sendtoClient;
+    var sendtoClient = "$findMenu";
     if (recentsearchDb[token] == null) {
-      sendtoClient = "$findMenu";
-      recentsearchDb[token] = searchWord;
+      recentsearchDb[token] = [searchWord];
     } else {
-      sendtoClient = "$findMenu \n ${recentsearchDb[token]}";
       recentsearchDb[token].add(searchWord);
     }
     
+    printAndSendHttpResponse(request, sendtoClient);
+  }
+
+
+void readStoreInfo(var storeDb, var request, Map recentsearchDb) async {
+  var token = request.headers['authorization']![0];
+  var content = await utf8.decoder.bind(request).join();
+  var searchWord = jsonDecode(content);
+
+  print("> Find the word '$searchWord' in store");
+
+  Map<int, List<dynamic>> findMenu = {};
+  storeDb.forEach((key, value) {
+      if (value.isNotEmpty && value[1].toString().contains(searchWord)) {
+        findMenu[key] = [value[0], value[1], double.parse(value[2].toStringAsFixed(1)), value[3], double.parse(value[5].toStringAsFixed(1))];
+      }});
+  
+    print("> Found \n $findMenu");
+    print("> Send to Client \n");
+
+    var sendtoClient = "$findMenu";
+    if (recentsearchDb[token] == null) {
+      recentsearchDb[token] = [searchWord];
+    } else {
+      recentsearchDb[token].add(searchWord);
+    }
     printAndSendHttpResponse(request, sendtoClient);
   }
 
@@ -166,7 +206,6 @@ void createId(var userinfoDb, var request, UserNumber usernumber, var recentsear
       usernumber.num++;
       int nownum = usernumber.num;
       userinfoDb[nownum] = transaction;
-      recentsearchDb[nownum] = null;
       content = "Success < $transaction created >";
     }
   }
@@ -225,11 +264,50 @@ void login(var userinfoDb, var loginInfo, var request, var recentsearchDb) async
 
 
 void readUserInfo(var userinfoDb, var request) async {
-  var content = await utf8.decoder.bind(request).join();
-  var usertokenNum = jsonDecode(content) as int;
-
-  print("> user_info \n ${userinfoDb[usertokenNum]}");
-  var userInfo = userinfoDb[usertokenNum];
+  var token = int.parse(request.headers['authorization']![0]);
+  print("> user_info \n ${userinfoDb[token]}");
+  var userInfo = userinfoDb[token];
   print("> Send to Client \n");
   printAndSendHttpResponse(request, userInfo);
+}
+
+
+void recentWord(var userinfoDb, var request, var recentsearchDb) async {
+  var token = request.headers['authorization']![0];
+  print("> recentsearchWord \n ${recentsearchDb[token]}");
+  print("> Send to Client \n");
+  printAndSendHttpResponse(request, recentsearchDb[token]);
+}
+
+
+void getUrl(var storeDb, var request, var recentsearchDb) async {
+  var menutoken = int.parse(request.headers['authorization']![0]);
+  print("> $menutoken : ${storeDb[menutoken][4]}");
+  print("> Send to Client \n");
+  printAndSendHttpResponse(request, storeDb[menutoken][4]);
+}
+
+
+void clickStar(var starDb, var request, var storeDb) async {
+  var token = int.parse(request.headers['authorization']![0]);
+  var content = await utf8.decoder.bind(request).join();
+  var menutoken = int.parse(jsonDecode(content));
+
+  Map newDb = {};
+  newDb[menutoken] = storeDb[menutoken];
+  if (starDb[token] == null) {
+    starDb[token] = [newDb];
+  } else {
+    starDb[token].add(newDb);
+  }
+  print("> Saved star : $starDb");
+  var content2 = "Star saved";
+  printAndSendHttpResponse(request, content2);
+}
+
+
+void getStar(var starDb, var request, var storeDb) async {
+  var token = int.parse(request.headers['authorization']![0]);
+  print("> Saved star : ${starDb[token]}");
+  printAndSendHttpResponse(request, starDb[token]);
 }
