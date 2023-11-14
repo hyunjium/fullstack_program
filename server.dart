@@ -138,11 +138,25 @@ void readMenuInfo(var storeDb, var request, var recentsearchDb) async {
       if (value.isNotEmpty && value[0].toString().contains(searchWord)) {
         findMenu[key] = [value[0], value[1], double.parse(value[2].toStringAsFixed(1)), value[3], double.parse(value[5].toStringAsFixed(1))];
       }});
+
+      // Map의 값을 첫 번째 요소로 정렬하고, 동일한 경우 두 번째 요소로 정렬
+      var sortedEntries = findMenu.entries.toList()
+        ..sort((a, b) {
+      // Compare the first values
+      int compareFirstValues = b.value[2].compareTo(a.value[2]);
+
+      // If the first values are equal, compare the second values
+      return compareFirstValues == 0 ? b.value[3].compareTo(a.value[3]) : compareFirstValues;
+      });
+
+      // 정렬된 엔트리들을 LinkedHashMap으로 변환
+      Map<int, List<dynamic>> sortedMap = Map.fromEntries(sortedEntries);
+
   
-    print("> Found \n $findMenu");
+    print("> Found \n $sortedMap");
     print("> Send to Client \n");
 
-    var sendtoClient = "$findMenu";
+    var sendtoClient = "$sortedMap";
     if (recentsearchDb[token] == null) {
       recentsearchDb[token] = [searchWord];
     } else {
@@ -165,11 +179,25 @@ void readStoreInfo(var storeDb, var request, Map recentsearchDb) async {
       if (value.isNotEmpty && value[1].toString().contains(searchWord)) {
         findMenu[key] = [value[0], value[1], double.parse(value[2].toStringAsFixed(1)), value[3], double.parse(value[5].toStringAsFixed(1))];
       }});
+
+      // Map의 값을 첫 번째 요소로 정렬하고, 동일한 경우 두 번째 요소로 정렬
+      var sortedEntries = findMenu.entries.toList()
+        ..sort((a, b) {
+      // Compare the first values
+      int compareFirstValues = b.value[2].compareTo(a.value[2]);
+
+      // If the first values are equal, compare the second values
+      return compareFirstValues == 0 ? b.value[3].compareTo(a.value[3]) : compareFirstValues;
+      });
+
+      // 정렬된 엔트리들을 LinkedHashMap으로 변환
+      Map<int, List<dynamic>> sortedMap = Map.fromEntries(sortedEntries);
+
   
-    print("> Found \n $findMenu");
+    print("> Found \n $sortedMap");
     print("> Send to Client \n");
 
-    var sendtoClient = "$findMenu";
+    var sendtoClient = "$sortedMap";
     if (recentsearchDb[token] == null) {
       recentsearchDb[token] = [searchWord];
     } else {
